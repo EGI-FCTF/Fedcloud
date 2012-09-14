@@ -11,6 +11,7 @@ import threading
 from stratuslab.Exceptions import InputException, ExecutionException
 from stratuslab.ManifestInfo import ManifestInfo
 import stratuslab.Util as Util
+import time
 
 ###
 ### Define this variables to get your certificates
@@ -215,6 +216,11 @@ def machineLaunch(metadataList):
 		    pat = re.compile(r'http[s]{0,1}://[a-z].[a-z][a-z\.\-0-9]*:[0-9]+[a-z.0-9/\-]*')
 		    link = re.findall(pat,result)
 		    print "\t  Link to machine: ",link[0]
+
+                    # Wait a tiny bit to allow for a fixed_ip to be
+                    # associated.  Without a fixed_ip, the allocation
+                    # and association of the floating IP will fail
+                    time.sleep(2)
 
                     ## Allocate a floating IP
                     alloc_ip_headers = " -H 'Category: alloc_float_ip; scheme=\"http://schemas.openstack.org/instance/action#\"; class=\"action\"; title=\"Allocate a floating IP to the compute resource.\"'"
@@ -438,16 +444,20 @@ def machineDelete(machines):
 		    if debug == 1: print result
 		    print "\n\t\tError deleting selected machine."
 		raw_input('\n\tPress enter to continue')
-	    else:
+	    else: # We're talking to an OS instance
 		found=0
 		if len(insecures) > 0:
 		    for site in insecures:
 			if machines[key]['endpoint'].find(site) != -1:
+                            dealloc_floating_ip="curl -v -s --sslv3 --insecure --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X POST -H 'Category: dealloc_float_ip; scheme=\"http://schemas.openstack.org/instance/action#\"; class=\"action\"' "+machines[key]['endpoint']+"/compute/"+machines[key]['occi_id']+"?action=dealloc_float_ip"
 			    instantiate="curl -v -s --sslv3 --insecure --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X DELETE "+machines[key]['endpoint']+"/compute/"+machines[key]['occi_id']
 			    found = 1
 			    break
 		if found == 0:
-		    instantiate="curl -s --sslv3 --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X DELETE "+machines[key]['endpoint']+"/compute/"+machines[key]['occi_id']+" --capath "+capath
+                    dealloc_floating_ip="curl -s --sslv3 --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X POST -H 'Category: dealloc_float_ip; scheme=\"http://schemas.openstack.org/instance/action#\"; class=\"action\"' "+machines[key]['endpoint']+"/compute/"+machines[key]['occi_id']+"?action=dealloc_float_ip --capath "+capath
+                    instantiate="curl -s --sslv3 --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X DELETE "+machines[key]['endpoint']+"/compute/"+machines[key]['occi_id']+" --capath "+capath
+                if debug == 1: print "Launched:",dealloc_floating_ip.replace(passwd,"xxxxxx")
+                dealloc_floating_ip_status, dealloc_floating_ip_result = commands.getstatusoutput(dealloc_floating_ip)
 		if debug == 1: print "Launched:",instantiate.replace(passwd,"xxxxxx")
 		status, result = commands.getstatusoutput(instantiate)
 		
