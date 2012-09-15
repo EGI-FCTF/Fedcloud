@@ -225,7 +225,16 @@ def machineLaunch(metadataList):
                     ## Allocate a floating IP
                     alloc_ip_headers = " -H 'Category: alloc_float_ip; scheme=\"http://schemas.openstack.org/instance/action#\"; class=\"action\"; title=\"Allocate a floating IP to the compute resource.\"'"
                     alloc_ip_headers += " -H 'X-OCCI-Attribute: org.openstack.network.floating.pool=\"public_ips\"'"
-                    alloc_ip = "curl -s --sslv3 --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X POST -v "+link[0]+"?action=alloc_float_ip"+alloc_ip_headers
+
+                    if len(insecures) > 0:
+                        for site in insecures:
+                            if endpoint[0].find(site) != -1:
+                                alloc_ip="curl -v -s --sslv3 --insecure --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X POST " +link[0]+"?action=alloc_float_ip"+alloc_ip_headers
+                                found = 1
+                                break
+                    if found == 0:
+                        alloc_ip = "curl -s --sslv3 --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem -H 'Content-Type: text/occi' -X POST -v "+link[0]+"?action=alloc_float_ip"+alloc_ip_headers
+
                     if debug == 1: print alloc_ip.replace(passwd,"xxxxxx")
                     alloc_ip_status, alloc_ip_result = commands.getstatusoutput(alloc_ip)
                     if debug == 1: print alloc_ip_result
