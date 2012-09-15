@@ -263,6 +263,7 @@ def checkMachine(machine,validMachines):
 	    checkRunning = "curl -s --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem "+endpoint[0]+"/compute/ --capath "+capath+" | awk \'{ print $1 }\'"
 	if debug == 1: print "Launched:",checkRunning.replace(passwd,"xxxxxx")
 	status, checkResult = commands.getstatusoutput(checkRunning)
+        if debug == 1: print "Returned:\n", checkResult
 	if checkResult.find("X-OCCI-Location:") != -1:
 	    found=0
 	    if len(insecures) > 0:
@@ -275,6 +276,7 @@ def checkMachine(machine,validMachines):
 		runningMachines = "curl -s --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem "+endpoint[0]+"/compute/ --capath "+capath+" | awk \'{ print $2 }\'"
 	    if debug == 1: print "Launched:",runningMachines.replace(passwd,"xxxxxx")
 	    status, machines = commands.getstatusoutput(runningMachines)
+            if debug == 1: print "Returned:\n", machines
 	    listMachines = machines.splitlines()
 	    
 	    for m in listMachines:
@@ -289,6 +291,7 @@ def checkMachine(machine,validMachines):
 		    comm = "curl -s --cert "+certpath+"/usercert.pem:"+passwd+" --key "+certpath+"/userkey.pem --capath "+capath+" "+m
 		if debug == 1: print "Launched:",comm.replace(passwd,"xxxxxx")
 		status, occiValues = commands.getstatusoutput(comm)
+                if debug == 1: print "Returned:\n", occiValues
 		##only must be saved/showed valid machines for fedcloud or by user, attending occi values
 		machineValues = occiValues.splitlines()
 		info = {}
@@ -312,10 +315,13 @@ def checkMachine(machine,validMachines):
 			    info['occi_id']=m.replace("X-OCCI-Attribute: occi.core.id=","").replace("\"","")
 			if m.find("X-OCCI-Attribute: occi.compute.state=") != -1:
 			    info['status']=m.replace("X-OCCI-Attribute: occi.compute.state=","").replace("\"","")
-	    if 'title' in info and info['title'].find(machine["identifier"]) != -1:
-		info['endpoint']=endpoint[0]
-		info['framework']="OpenNebula"
-		validMachines.append(info)
+                if debug == 1: print "Looking for:\n", machine["identifier"]
+                if debug == 1: print "Looking in:\n", info['title']
+	        if 'title' in info and info['title'].find(machine["identifier"]) != -1:
+                    if debug == 1: print "Found!"
+		    info['endpoint']=endpoint[0]
+		    info['framework']="OpenNebula"
+		    validMachines.append(info)
     else:#if not opennebula
 	found=0
 	if len(insecures) > 0:
@@ -406,11 +412,12 @@ def machineList(metadataList):
     info = []
     threads = [] 
     for machine in metadataList:
-	t = threading.Thread(target=checkMachine, args=(machine,validMachines))
-	threads += [t]
-	t.start()
-    for x in threads: 
-	x.join()
+        checkMachine(machine,validMachines)
+	#t = threading.Thread(target=checkMachine, args=(machine,validMachines))
+	#threads += [t]
+	#t.start()
+    #for x in threads: 
+	#x.join()
     return validMachines
 
 
